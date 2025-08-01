@@ -1,0 +1,137 @@
+<%# Get current username %>
+<% username = defined?(current_user) ? current_user : OodSupport::User.new.name %>
+<% squeue_output = `squeue -u #{username} -o "%i|%j|%P|%u|%T|%M|%D"` %>
+
+<div class="widget-header">
+  <div class="widget-title">
+    <i class="fas fa-tasks"></i>
+    <span>Recent Jobs</span>
+    <a class="announcement-viewall" href="https://ondemand.rc.ucmerced.edu/pun/sys/dashboard/activejobs" target="_blank" rel="noopener noreferrer">
+    <i class="fas fa-list"></i> View All
+    </a>
+  </div>
+  <div style="display: flex; gap: 0.5rem; align-items: center;">
+  <button id="reloadJobs" class="widget-action" title="Refresh">
+    <i class="fa fa-rotate-right"></i>
+  </button>
+  </div>
+</div>
+<div id="job-timestamp" class="last-updated"></div>
+
+<div id="squeue-container">
+  <pre style="display: none;"><%= squeue_output %></pre>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const container = document.getElementById("squeue-container");
+  const preElement = container.querySelector("pre");
+  if (!preElement) return;
+
+  renderJobs(preElement);
+  updateJobTimestamp();
+
+  document.getElementById("reloadJobs")?.addEventListener("click", () => {
+    fetch(window.location.href, { cache: "no-store" })
+      .then(response => response.text())
+      .then(html => {
+        const temp = document.createElement("div");
+        temp.innerHTML = html;
+        const newPre = temp.querySelector("#squeue-container pre");
+        if (newPre) {
+          container.innerHTML = "";
+          container.appendChild(newPre);
+          renderJobs(newPre);
+          updateJobTimestamp();
+        }
+      });
+  });
+});
+
+function renderJobs(preElement) {
+  const raw = preElement.innerText.trim();
+  const lines = raw.split("\n");
+  const container = preElement.parentElement;
+
+  if (lines.length <= 1) {
+    container.innerHTML = `<div class="no-jobs-msg">You have no jobs currently running.</div>`;
+    return;
+  }
+
+  const jobs = lines.slice(1).map(line => {
+    const [id, name, part, user, state, time, nodes] = line.split("|").map(s => s.trim());
+    return { id, name, part, user, state, time, nodes };
+  });
+
+  const recent = jobs.reverse().slice(0, 5); // newest first
+  const jobCards = document.createElement("div");
+  jobCards.className = "job-card-container";
+
+  container.innerHTML = ""; // Clear existing content
+  container.appendChild(jobCards);
+
+  recent.forEach(job => {
+    const card = document.createElement("div");
+    card.className = "job-card";
+    const statusColor = getStatusBadgeClass(job.state);
+    const jobTimeId = `job-time-${job.id}`;
+
+    card.innerHTML = `
+      <div class="job-name">${job.name}</div>
+      <div class="job-meta">${job.id} • ${job.part}</div>
+      <div class="job-timestamp"><i class="fa fa-clock"></i> <span id="${jobTimeId}">${job.time}</span></div>
+      <div class="job-status">
+        <span class="status-badge ${statusColor}">${job.state}</span>
+      </div>
+    `;
+
+    jobCards.appendChild(card);
+
+    if (job.state.toUpperCase() === "RUNNING") {
+      setTimeout(() => startLiveTimer(job.time, jobTimeId), 0);
+    }
+  });
+}
+
+function getStatusBadgeClass(state) {
+  const normalized = state.toUpperCase();
+  if (normalized.includes("PENDING")) return "pending";
+  if (normalized.includes("RUNNING")) return "running";
+  if (normalized.includes("COMPLETING")) return "completing";
+  if (normalized.includes("COMPLETED")) return "completed";
+  if (normalized.includes("SUSPENDED")) return "suspended";
+  return "default";
+}
+
+function updateJobTimestamp() {
+  const tsEl = document.getElementById("job-timestamp");
+  if (tsEl) {
+    const now = new Date();
+    tsEl.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+  }
+}
+
+function startLiveTimer(initialTime, elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+
+  const timeParts = initialTime.split(":").map(Number);
+  let seconds = 0;
+
+  if (timeParts.length === 3) {
+    seconds = timeParts[0] * 3600 + timeParts[1] * 60 + timeParts[2];
+  } else if (timeParts.length === 2) {
+    seconds = timeParts[0] * 60 + timeParts[1];
+  } else if (timeParts.length === 1) {
+    seconds = timeParts[0];
+  }
+
+  setInterval(() => {
+    seconds += 1;
+    const hrs = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const mins = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const secs = String(seconds % 60).padStart(2, '0');
+    el.textContent = `${hrs}:${mins}:${secs}`;
+  }, 1000);
+}
+</script>
