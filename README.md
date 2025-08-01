@@ -15,7 +15,7 @@ Key goals:
 Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/ood_recent_jobs_widget.git
+git clone https://github.com/NessieCanCode/ood_squeue_widget.git
 cd ood_recent_jobs_widget
 ```
 
