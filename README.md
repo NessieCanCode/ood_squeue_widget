@@ -1,6 +1,11 @@
 # OnDemand Recent Jobs Widget
 
 ## About
+![Recebt Jobs Widget](images/Screenshot.gif)
+
+![Recebt Jobs Widget - Pending](images/Pending.png)
+
+![Recebt Jobs Widget - Started](images/Started.png)
 
 This repository contains a lightweight, transferable OnDemand recent jobs widget that consumes raw `squeue` output for the current user, extracts the latest jobs, and renders a concise visual summary including job name, partition, ID, state badge, and elapsed time (live-updating for running jobs). It’s built so other sites or dashboards can drop it in with minimal adjustments and surface user-specific job visibility consistently.
 
